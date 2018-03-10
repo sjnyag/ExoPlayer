@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <android/log.h>
+
 // libFLAC parser
 #include "FLAC/stream_decoder.h"
 
@@ -57,9 +59,17 @@ class FLACParser {
     reset(mCurrentPos);
   }
 
+  void seekAbsolute(int64_t timeUs) {
+    if (mDecoder != NULL) {
+      mEOF = false;
+      FLAC__stream_decoder_seek_absolute(mDecoder, (timeUs * getSampleRate()) / 1000000LL);
+    }
+  }
+
   void reset(int64_t newPosition) {
     if (mDecoder != NULL) {
       mCurrentPos = newPosition;
+      __android_log_print(ANDROID_LOG_ERROR, "reset", "newPosition %zd", newPosition);
       mEOF = false;
       if (newPosition == 0) {
         mStreamInfoValid = false;

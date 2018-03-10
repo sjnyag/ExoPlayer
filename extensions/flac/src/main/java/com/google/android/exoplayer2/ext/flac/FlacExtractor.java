@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
+import android.util.Log;
+
 import static com.google.android.exoplayer2.util.Util.getPcmEncoding;
 
 import com.google.android.exoplayer2.C;
@@ -89,7 +91,10 @@ public final class FlacExtractor implements Extractor {
   @Override
   public int read(final ExtractorInput input, PositionHolder seekPosition)
       throws IOException, InterruptedException {
+    Log.e("FlacExtractor", "read start");
+    Log.e("FlacExtractor", "read metadataParsed:" + metadataParsed);
     decoderJni.setData(input);
+    Log.e("FlacExtractor", "read setData end");
 
     if (!metadataParsed) {
       final FlacStreamInfo streamInfo;
@@ -105,11 +110,7 @@ public final class FlacExtractor implements Extractor {
       }
       metadataParsed = true;
 
-      boolean isSeekable = decoderJni.getSeekPosition(0) != -1;
-      extractorOutput.seekMap(
-          isSeekable
-              ? new FlacSeekMap(streamInfo.durationUs(), decoderJni)
-              : new SeekMap.Unseekable(streamInfo.durationUs(), 0));
+      extractorOutput.seekMap(new FlacSeekMap(streamInfo.durationUs(), decoderJni));
       Format mediaFormat =
           Format.createAudioSampleFormat(
               null,
@@ -131,34 +132,47 @@ public final class FlacExtractor implements Extractor {
     }
 
     outputBuffer.reset();
+    Log.e("FlacExtractor", "read reset end");
     long lastDecodePosition = decoderJni.getDecodePosition();
+    Log.e("FlacExtractor", "read getDecodePosition end");
     int size;
     try {
       size = decoderJni.decodeSample(outputByteBuffer);
+      Log.e("FlacExtractor", "read decodeSample end");
     } catch (IOException e) {
+      Log.e("FlacExtractor", "read decodeSample IOException");
+      e.printStackTrace();
       if (lastDecodePosition >= 0) {
         decoderJni.reset(lastDecodePosition);
+          Log.e("FlacExtractor", "read reset end");
         input.setRetryPosition(lastDecodePosition, e);
+          Log.e("FlacExtractor", "read setRetryPosition end");
       }
       throw e;
     }
     if (size <= 0) {
+      Log.e("FlacExtractor", "read size <= 0");
       return RESULT_END_OF_INPUT;
     }
     trackOutput.sampleData(outputBuffer, size);
     trackOutput.sampleMetadata(decoderJni.getLastSampleTimestamp(), C.BUFFER_FLAG_KEY_FRAME, size,
         0, null);
+    Log.e("FlacExtractor", "read end");
 
     return decoderJni.isEndOfData() ? RESULT_END_OF_INPUT : RESULT_CONTINUE;
   }
 
   @Override
   public void seek(long position, long timeUs) {
-    if (position == 0) {
+    if (position == 0 && timeUs == 0) {
       metadataParsed = false;
     }
     if (decoderJni != null) {
-      decoderJni.reset(position);
+      if(position == 0){
+        decoderJni.seekAbsolute(timeUs);
+      } else {
+        decoderJni.reset(position);
+      }
     }
   }
 
@@ -188,7 +202,9 @@ public final class FlacExtractor implements Extractor {
     @Override
     public SeekPoints getSeekPoints(long timeUs) {
       // TODO: Access the seek table via JNI to return two seek points when appropriate.
-      return new SeekPoints(new SeekPoint(timeUs, decoderJni.getSeekPosition(timeUs)));
+      // return new SeekPoints(new SeekPoint(timeUs, decoderJni.getSeekPosition(timeUs)));
+      long pos = decoderJni.getSeekPosition(timeUs);
+      return new SeekPoints(new SeekPoint(timeUs, pos == -1 ? 0 : pos));
     }
 
     @Override

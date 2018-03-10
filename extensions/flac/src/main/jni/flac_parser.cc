@@ -18,8 +18,6 @@
 
 #include <jni.h>
 
-#include <android/log.h>
-
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -107,6 +105,7 @@ void FLACParser::error_callback(const FLAC__StreamDecoder * /* decoder */,
 
 FLAC__StreamDecoderReadStatus FLACParser::readCallback(FLAC__byte buffer[],
                                                        size_t *bytes) {
+  ALOGE("readCallback");
   size_t requested = *bytes;
   ssize_t actual = mDataSource->readAt(mCurrentPos, buffer, requested);
   if (0 > actual) {
@@ -120,12 +119,14 @@ FLAC__StreamDecoderReadStatus FLACParser::readCallback(FLAC__byte buffer[],
     assert(actual <= requested);
     *bytes = actual;
     mCurrentPos += actual;
+    ALOGE("readCallback mCurrentPos: %zd", mCurrentPos);
     return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
   }
 }
 
 FLAC__StreamDecoderSeekStatus FLACParser::seekCallback(
     FLAC__uint64 absolute_byte_offset) {
+  ALOGE("FLACParser::seekCallback mCurrentPos: %zd", absolute_byte_offset);
   mCurrentPos = absolute_byte_offset;
   mEOF = false;
   return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
@@ -133,19 +134,35 @@ FLAC__StreamDecoderSeekStatus FLACParser::seekCallback(
 
 FLAC__StreamDecoderTellStatus FLACParser::tellCallback(
     FLAC__uint64 *absolute_byte_offset) {
+  ALOGE("tellCallback");
   *absolute_byte_offset = mCurrentPos;
   return FLAC__STREAM_DECODER_TELL_STATUS_OK;
 }
 
 FLAC__StreamDecoderLengthStatus FLACParser::lengthCallback(
     FLAC__uint64 *stream_length) {
+  ALOGE("lengthCallback");
+  //ALOGE("FLACParser::lengthCallback lengthCallback");
+  //if(mCurrentPos == 0){
+  //  return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+  //}
+  //ssize_t length = (FLAC__uint64)mDataSource->getStreamLength();
+  //if(length == -1){
+  //  return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+  //}
+  //*stream_length = (FLAC__uint64)length;
+  //return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
   return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
 }
 
-FLAC__bool FLACParser::eofCallback() { return mEOF; }
+FLAC__bool FLACParser::eofCallback() {
+  ALOGE("eofCallback");
+  return mEOF;
+}
 
 FLAC__StreamDecoderWriteStatus FLACParser::writeCallback(
     const FLAC__Frame *frame, const FLAC__int32 *const buffer[]) {
+  ALOGE("writeCallback");
   if (mWriteRequested) {
     mWriteRequested = false;
     // FLAC parser doesn't free or realloc buffer until next frame or finish
@@ -160,6 +177,7 @@ FLAC__StreamDecoderWriteStatus FLACParser::writeCallback(
 }
 
 void FLACParser::metadataCallback(const FLAC__StreamMetadata *metadata) {
+  ALOGE("metadataCallback");
   switch (metadata->type) {
     case FLAC__METADATA_TYPE_STREAMINFO:
       if (!mStreamInfoValid) {
@@ -189,6 +207,7 @@ void FLACParser::errorCallback(FLAC__StreamDecoderErrorStatus status) {
 static void copyToByteArrayBigEndian(int8_t *dst, const int *const *src,
                                      unsigned bytesPerSample, unsigned nSamples,
                                      unsigned nChannels) {
+  ALOGE("copyToByteArrayBigEndian");
   for (unsigned i = 0; i < nSamples; ++i) {
     for (unsigned c = 0; c < nChannels; ++c) {
       // point to the first byte of the source address
@@ -205,6 +224,7 @@ static void copyToByteArrayBigEndian(int8_t *dst, const int *const *src,
 static void copyToByteArrayLittleEndian(int8_t *dst, const int *const *src,
                                         unsigned bytesPerSample,
                                         unsigned nSamples, unsigned nChannels) {
+  ALOGE("copyToByteArrayLittleEndian");
   for (unsigned i = 0; i < nSamples; ++i) {
     for (unsigned c = 0; c < nChannels; ++c) {
       // with little endian, the most significant bytes will be at the end
@@ -219,6 +239,7 @@ static void copyToByteArrayLittleEndian(int8_t *dst, const int *const *src,
 static void copyTrespass(int8_t * /* dst */, const int *const * /* src */,
                          unsigned /* bytesPerSample */, unsigned /* nSamples */,
                          unsigned /* nChannels */) {
+  ALOGE("copyTrespass");
   TRESPASS();
 }
 
@@ -252,6 +273,7 @@ FLACParser::~FLACParser() {
 
 bool FLACParser::init() {
   // setup libFLAC parser
+  ALOGE("init");
   mDecoder = FLAC__stream_decoder_new();
   if (mDecoder == NULL) {
     // The new should succeed, since probably all it does is a malloc
@@ -281,6 +303,7 @@ bool FLACParser::init() {
 }
 
 bool FLACParser::decodeMetadata() {
+  ALOGE("decodeMetadata");
   // parse all metadata
   if (!FLAC__stream_decoder_process_until_end_of_metadata(mDecoder)) {
     ALOGE("metadata decoding failed");
@@ -338,6 +361,7 @@ bool FLACParser::decodeMetadata() {
 }
 
 size_t FLACParser::readBuffer(void *output, size_t output_size) {
+  ALOGE("readBuffer");
   mWriteRequested = true;
   mWriteCompleted = false;
 
@@ -394,6 +418,7 @@ size_t FLACParser::readBuffer(void *output, size_t output_size) {
 }
 
 int64_t FLACParser::getSeekPosition(int64_t timeUs) {
+  ALOGE("getSeekPosition");
   if (!mSeekTable) {
     return -1;
   }
