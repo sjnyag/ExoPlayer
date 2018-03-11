@@ -105,8 +105,8 @@ void FLACParser::error_callback(const FLAC__StreamDecoder * /* decoder */,
 
 FLAC__StreamDecoderReadStatus FLACParser::readCallback(FLAC__byte buffer[],
                                                        size_t *bytes) {
-  ALOGE("readCallback");
   size_t requested = *bytes;
+  ALOGE("FLACParser::readCallback requested: %zd", requested);
   ssize_t actual = mDataSource->readAt(mCurrentPos, buffer, requested);
   if (0 > actual) {
     *bytes = 0;
@@ -119,7 +119,7 @@ FLAC__StreamDecoderReadStatus FLACParser::readCallback(FLAC__byte buffer[],
     assert(actual <= requested);
     *bytes = actual;
     mCurrentPos += actual;
-    ALOGE("readCallback mCurrentPos: %zd", mCurrentPos);
+    ALOGE("FLACParser::readCallback mCurrentPos: %zd", mCurrentPos);
     return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
   }
 }
@@ -134,7 +134,7 @@ FLAC__StreamDecoderSeekStatus FLACParser::seekCallback(
 
 FLAC__StreamDecoderTellStatus FLACParser::tellCallback(
     FLAC__uint64 *absolute_byte_offset) {
-  ALOGE("tellCallback");
+  ALOGE("FLACParser::tellCallback mCurrentPos: %zd", mCurrentPos);
   *absolute_byte_offset = mCurrentPos;
   return FLAC__STREAM_DECODER_TELL_STATUS_OK;
 }
@@ -142,17 +142,16 @@ FLAC__StreamDecoderTellStatus FLACParser::tellCallback(
 FLAC__StreamDecoderLengthStatus FLACParser::lengthCallback(
     FLAC__uint64 *stream_length) {
   ALOGE("lengthCallback");
-  //ALOGE("FLACParser::lengthCallback lengthCallback");
-  //if(mCurrentPos == 0){
-  //  return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
-  //}
-  //ssize_t length = (FLAC__uint64)mDataSource->getStreamLength();
-  //if(length == -1){
-  //  return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
-  //}
-  //*stream_length = (FLAC__uint64)length;
-  //return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
-  return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+  //return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+  if(mCurrentPos == 0){
+    return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+  }
+  ssize_t length = (FLAC__uint64)mDataSource->getStreamLength();
+  if(length == -1){
+    return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+  }
+  *stream_length = (FLAC__uint64)length;
+  return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
 }
 
 FLAC__bool FLACParser::eofCallback() {
@@ -171,8 +170,9 @@ FLAC__StreamDecoderWriteStatus FLACParser::writeCallback(
     mWriteCompleted = true;
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
   } else {
-    ALOGE("FLACParser::writeCallback unexpected");
-    return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+    //ALOGE("FLACParser::writeCallback unexpected");
+    //return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+    return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
   }
 }
 

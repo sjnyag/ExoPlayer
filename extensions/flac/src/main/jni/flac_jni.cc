@@ -19,62 +19,62 @@
 #include <cstdlib>
 #include "include/flac_parser.h"
 
-//static JavaVM *jvm=NULL;
-//#include <pthread.h>
-//static pthread_key_t jnienv_key;
-//
-//jobject g_obj;
-//
-//
-//void _android_key_cleanup(void *data)
-//{
-//	JNIEnv* env=(JNIEnv*)pthread_getspecific(jnienv_key);
-//	if (env != NULL)
-//	{
-//		(*jvm).DetachCurrentThread();
-//		pthread_setspecific(jnienv_key,NULL);
-//	}
-//}
-//void av_set_jvm(JavaVM *vm)
-//{
-//	jvm=vm;
-//	pthread_key_create(&jnienv_key,_android_key_cleanup);
-//
-//}
-//JavaVM *av_get_jvm(void)
-//{
-//	return jvm;
-//}
-//
-//JNIEnv *av_get_jni_env(void)
-//{
-//	JNIEnv *env=NULL;
-//	if (jvm==NULL)
-//	{
-//		//ms_fatal("Calling ms_get_jni_env() while no jvm has been set using ms_set_jvm().");
-//	}
-//	else
-//	{
-//		env=(JNIEnv*)pthread_getspecific(jnienv_key);
-//		if (env==NULL)
-//		{
-//			if ((*jvm).AttachCurrentThread(&env,NULL)!=0)
-//			{
-//				//ms_fatal("AttachCurrentThread() failed !");
-//				return NULL;
-//			}
-//			pthread_setspecific(jnienv_key,env);
-//		}
-//	}
-//	return env;
-//}
-//
-//JNIEXPORT jint JNICALL  JNI_OnLoad(JavaVM *ajvm, void *reserved)
-//{
-//	av_set_jvm(ajvm);
-//	__android_log_print(ANDROID_LOG_INFO,"avplayer_jni","JNI_OnLoad");
-//	return JNI_VERSION_1_2;
-//}
+static JavaVM *jvm=NULL;
+#include <pthread.h>
+static pthread_key_t jnienv_key;
+
+jobject g_obj;
+
+
+void _android_key_cleanup(void *data)
+{
+	JNIEnv* env=(JNIEnv*)pthread_getspecific(jnienv_key);
+	if (env != NULL)
+	{
+		(*jvm).DetachCurrentThread();
+		pthread_setspecific(jnienv_key,NULL);
+	}
+}
+void av_set_jvm(JavaVM *vm)
+{
+	jvm=vm;
+	pthread_key_create(&jnienv_key,_android_key_cleanup);
+
+}
+JavaVM *av_get_jvm(void)
+{
+	return jvm;
+}
+
+JNIEnv *av_get_jni_env(void)
+{
+	JNIEnv *env=NULL;
+	if (jvm==NULL)
+	{
+		//ms_fatal("Calling ms_get_jni_env() while no jvm has been set using ms_set_jvm().");
+	}
+	else
+	{
+		env=(JNIEnv*)pthread_getspecific(jnienv_key);
+		if (env==NULL)
+		{
+			if ((*jvm).AttachCurrentThread(&env,NULL)!=0)
+			{
+				//ms_fatal("AttachCurrentThread() failed !");
+				return NULL;
+			}
+			pthread_setspecific(jnienv_key,env);
+		}
+	}
+	return env;
+}
+
+JNIEXPORT jint JNICALL  JNI_OnLoad(JavaVM *ajvm, void *reserved)
+{
+	av_set_jvm(ajvm);
+	__android_log_print(ANDROID_LOG_INFO,"avplayer_jni","JNI_OnLoad");
+	return JNI_VERSION_1_2;
+}
 
 #define LOG_TAG "flac_jni"
 #define ALOGE(...) \
@@ -100,48 +100,45 @@ class JavaDataSource : public DataSource {
 
 
 
-    if (mid == NULL) {
-      jclass cls = env->GetObjectClass(flacDecoderJni);
-      mid = env->GetMethodID(cls, "read", "(Ljava/nio/ByteBuffer;)I");
-      env->DeleteLocalRef(cls);
-    }
+//    if (mid == NULL) {
+//      jclass cls = env->GetObjectClass(flacDecoderJni);
+//      mid = env->GetMethodID(cls, "read", "(Ljava/nio/ByteBuffer;)I");
+//      env->DeleteLocalRef(cls);
+//    }
 
   }
 
   ssize_t readAt(off64_t offset, void *const data, size_t size) {
+//    __android_log_print(ANDROID_LOG_ERROR, "readAt", "offset %zd", offset);
+//    jobject byteBuffer = env->NewDirectByteBuffer(data, size);
+//    int result = env->CallIntMethod(flacDecoderJni, mid, byteBuffer);
+//    if (env->ExceptionCheck()) {
+//       // Exception is thrown in Java when returning from the native call.
+//       result = -1;
+//     }
+//    env->DeleteLocalRef(byteBuffer);
+    JNIEnv *current=NULL;
+    current=av_get_jni_env();
+    if(g_obj == NULL){
+        g_obj = current->NewGlobalRef(this->flacDecoderJni);
+    }
+    jclass clsss = current->GetObjectClass(g_obj);
+    jmethodID readMethodId = current->GetMethodID(clsss, "read", "(Ljava/nio/ByteBuffer;I)I");
+    jmethodID getStreamLengthMethodId = current->GetMethodID(clsss, "getStreamLength", "()J");
+    current->DeleteLocalRef(clsss);
     __android_log_print(ANDROID_LOG_ERROR, "readAt", "offset %zd", offset);
-    jobject byteBuffer = env->NewDirectByteBuffer(data, size);
-    int result = env->CallIntMethod(flacDecoderJni, mid, byteBuffer);
-    if (env->ExceptionCheck()) {
-       // Exception is thrown in Java when returning from the native call.
-       result = -1;
-     }
-    env->DeleteLocalRef(byteBuffer);
-
-
-
-
-//    JNIEnv *current=NULL;
-//    current=av_get_jni_env();
-//    if(g_obj == NULL){
-//        g_obj = current->NewGlobalRef(this->flacDecoderJni);
-//    }
-//    jclass clsss = current->GetObjectClass(g_obj);
-//    jmethodID readMethodId = current->GetMethodID(clsss, "read", "(Ljava/nio/ByteBuffer;I)I");
-//    jmethodID getStreamLengthMethodId = current->GetMethodID(clsss, "getStreamLength", "()J");
-//    current->DeleteLocalRef(clsss);
-//    __android_log_print(ANDROID_LOG_ERROR, "readAt", "mCurrentPos %zd", offset);
-//    jobject byteBuffer = current->NewDirectByteBuffer(data, size);
-//    __android_log_print(ANDROID_LOG_ERROR, "readAt", "1");
-//    streamLength = current->CallLongMethod(g_obj, getStreamLengthMethodId);
-//    __android_log_print(ANDROID_LOG_ERROR, "readAt", "2");
-//    int result = current->CallIntMethod(g_obj, readMethodId, byteBuffer, offset);
-//    if (current->ExceptionCheck()) {
-//      // Exception is thrown in Java when returning from the native call.
-//      result = -1;
-//    }
-//    __android_log_print(ANDROID_LOG_ERROR, "readAt", "3");
-//    current->DeleteLocalRef(byteBuffer);
+    jobject byteBuffer = current->NewDirectByteBuffer(data, size);
+    streamLength = current->CallLongMethod(g_obj, getStreamLengthMethodId);
+    __android_log_print(ANDROID_LOG_ERROR, "readAt", "start read(JNI)");
+    int result = current->CallIntMethod(g_obj, readMethodId, byteBuffer, offset);
+    __android_log_print(ANDROID_LOG_ERROR, "readAt", "end read(JNI) result: %zd", result);
+    if (current->ExceptionCheck()) {
+      // Exception is thrown in Java when returning from the native call.
+      __android_log_print(ANDROID_LOG_ERROR, "readAt", "error");
+      result = -1;
+    }
+    __android_log_print(ANDROID_LOG_ERROR, "readAt", "complete");
+    current->DeleteLocalRef(byteBuffer);
     return result;
   }
 

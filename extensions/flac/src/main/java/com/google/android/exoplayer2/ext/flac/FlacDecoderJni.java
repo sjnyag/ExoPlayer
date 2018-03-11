@@ -15,11 +15,14 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
+import android.util.Log;
+
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.extractor.ExtractorInput;
 import com.google.android.exoplayer2.util.FlacStreamInfo;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * JNI wrapper for the libflac Flac decoder.
@@ -97,8 +100,11 @@ import java.nio.ByteBuffer;
    * @return Returns the number of bytes read, or -1 on failure. It's not an error if this returns
    * zero; it just means all the data read from the source.
    */
-  public int read(ByteBuffer target/*, int offset*/) throws IOException, InterruptedException {
+  public int read(ByteBuffer target, int offset) throws IOException, InterruptedException {
     int byteCount = target.remaining();
+    Log.e("FlacDecoderJni", "byteCount: " + byteCount);
+    Log.e("FlacDecoderJni", "offset: " + offset);
+    Log.e("FlacDecoderJni", "getPosition: " + (int) extractorInput.getPosition());
     if (byteBufferData != null) {
       byteCount = Math.min(byteCount, byteBufferData.remaining());
       int originalLimit = byteBufferData.limit();
@@ -108,10 +114,26 @@ import java.nio.ByteBuffer;
 
       byteBufferData.limit(originalLimit);
     } else if (extractorInput != null) {
-//      int skip = offset - ((int) extractorInput.getPosition());
-//      if(skip < 0){
-//        extractorInput.skip(offset - ((int) extractorInput.getPosition()));
-//      }
+      int skip = offset - ((int) extractorInput.getPosition());
+      Log.e("FlacDecoderJni", "skip: " + skip);
+      if(skip < 0){
+        if(tempBuffer.length + skip < 0){
+          return -1;
+        }
+        byte[] before = Arrays.copyOfRange(tempBuffer,tempBuffer.length + skip,tempBuffer.length);
+        byteCount = readFromExtractorInput(0, Math.min(byteCount, TEMP_BUFFER_SIZE) + skip);
+        byte[] result = new byte[before.length + byteCount];
+        System.arraycopy(before,0,result,0,before.length);
+        System.arraycopy(tempBuffer,0,result,before.length, byteCount);
+        target.put(result, 0, before.length + byteCount);
+        return before.length + byteCount;
+      }
+      while(true){
+        skip -= extractorInput.skip(skip);
+        if(skip <= 0 || skip == C.RESULT_END_OF_INPUT){
+          break;
+        }
+      }
       byteCount = Math.min(byteCount, TEMP_BUFFER_SIZE);
       int read = readFromExtractorInput(0, byteCount);
       if (read < 4) {
