@@ -93,10 +93,9 @@ public final class FlacExtractor implements Extractor {
       throws IOException, InterruptedException {
     Log.e("FlacExtractor", "read start");
     if(decoderJni.isSeeking()){
-      decoderJni.setDataAfterSkip(input);
-    }else {
-      decoderJni.setData(input);
+      return RESULT_SEEK;
     }
+    decoderJni.setData(input);
 
     if (!metadataParsed) {
       final FlacStreamInfo streamInfo;

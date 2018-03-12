@@ -361,7 +361,7 @@ bool FLACParser::decodeMetadata() {
 }
 
 size_t FLACParser::readBuffer(void *output, size_t output_size) {
-  ALOGE("readBuffer");
+  ALOGE("FLACParser::readBuffer start");
   mWriteRequested = true;
   mWriteCompleted = false;
 
@@ -370,7 +370,9 @@ size_t FLACParser::readBuffer(void *output, size_t output_size) {
           getDecoderStateString());
     return -1;
   }
+  ALOGE("FLACParser::readBuffer FLAC__stream_decoder_process_single success");
   if (!mWriteCompleted) {
+    ALOGE("FLACParser::readBuffer mWriteCompleted false");
     if (FLAC__stream_decoder_get_state(mDecoder) !=
         FLAC__STREAM_DECODER_END_OF_STREAM) {
       ALOGE("FLACParser::readBuffer write did not complete. Status: %s",
@@ -413,6 +415,7 @@ size_t FLACParser::readBuffer(void *output, size_t output_size) {
 
   // fill in buffer metadata
   CHECK(mWriteHeader.number_type == FLAC__FRAME_NUMBER_TYPE_SAMPLE_NUMBER);
+  ALOGE("FLACParser::readBuffer end");
 
   return bufferSize;
 }
