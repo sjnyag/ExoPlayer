@@ -15,8 +15,6 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
-import android.util.Log;
-
 import static com.google.android.exoplayer2.util.Util.getPcmEncoding;
 
 import com.google.android.exoplayer2.C;
@@ -91,7 +89,6 @@ public final class FlacExtractor implements Extractor {
   @Override
   public int read(final ExtractorInput input, PositionHolder seekPosition)
       throws IOException, InterruptedException {
-    Log.e("FlacExtractor", "read start");
     if(decoderJni.isSeeking()){
       return RESULT_SEEK;
     }

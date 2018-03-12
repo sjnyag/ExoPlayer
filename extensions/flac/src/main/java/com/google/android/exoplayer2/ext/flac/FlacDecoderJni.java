@@ -30,7 +30,7 @@ import java.util.Arrays;
 /* package */ final class FlacDecoderJni {
 
   private static final int TEMP_BUFFER_SIZE = 8192; // The same buffer size which libflac has
-  private static final int SEEK_BUFFER_SIZE = 1024 * 1024; // The same buffer size which libflac has
+  private static final int SEEK_BUFFER_SIZE = 256 * 1024; // The same buffer size which libflac has
 
   private final long nativeDecoderContext;
 
@@ -151,7 +151,6 @@ import java.util.Arrays;
         read += readFromExtractorInput(read, byteCount - read);
       }
       byteCount = read;
-
       target.put(tempBuffer, 0, byteCount);
     } else {
       return -1;

@@ -96,7 +96,6 @@ struct Context {
 
 DECODER_FUNC(jlong, flacInit) {
   Context *context = new Context;
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacInit");
   if (!context->parser->init()) {
     delete context;
     return 0;
@@ -105,7 +104,6 @@ DECODER_FUNC(jlong, flacInit) {
 }
 
 DECODER_FUNC(jobject, flacDecodeMetadata, jlong jContext) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacDecodeMetadata");
   Context *context = reinterpret_cast<Context *>(jContext);
   context->source->setFlacDecoderJni(env, thiz);
   if (!context->parser->decodeMetadata()) {
@@ -128,7 +126,6 @@ DECODER_FUNC(jobject, flacDecodeMetadata, jlong jContext) {
 }
 
 DECODER_FUNC(jint, flacDecodeToBuffer, jlong jContext, jobject jOutputBuffer) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacDecodeToBuffer");
   Context *context = reinterpret_cast<Context *>(jContext);
   context->source->setFlacDecoderJni(env, thiz);
   void *outputBuffer = env->GetDirectBufferAddress(jOutputBuffer);
@@ -137,7 +134,6 @@ DECODER_FUNC(jint, flacDecodeToBuffer, jlong jContext, jobject jOutputBuffer) {
 }
 
 DECODER_FUNC(jint, flacDecodeToArray, jlong jContext, jbyteArray jOutputArray) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacDecodeToArray");
   Context *context = reinterpret_cast<Context *>(jContext);
   context->source->setFlacDecoderJni(env, thiz);
   jbyte *outputBuffer = env->GetByteArrayElements(jOutputArray, NULL);
@@ -148,50 +144,42 @@ DECODER_FUNC(jint, flacDecodeToArray, jlong jContext, jbyteArray jOutputArray) {
 }
 
 DECODER_FUNC(jlong, flacGetDecodePosition, jlong jContext) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacGetDecodePosition");
   Context *context = reinterpret_cast<Context *>(jContext);
   return context->parser->getDecodePosition();
 }
 
 DECODER_FUNC(jlong, flacGetLastTimestamp, jlong jContext) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacGetLastTimestamp");
   Context *context = reinterpret_cast<Context *>(jContext);
   return context->parser->getLastTimestamp();
 }
 
 DECODER_FUNC(jlong, flacGetSeekPosition, jlong jContext, jlong timeUs) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacGetSeekPosition");
   Context *context = reinterpret_cast<Context *>(jContext);
   return context->parser->getSeekPosition(timeUs);
 }
 
 DECODER_FUNC(jstring, flacGetStateString, jlong jContext) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacGetStateString");
   Context *context = reinterpret_cast<Context *>(jContext);
   const char *str = context->parser->getDecoderStateString();
   return env->NewStringUTF(str);
 }
 
 DECODER_FUNC(void, flacFlush, jlong jContext) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacFlush");
   Context *context = reinterpret_cast<Context *>(jContext);
   context->parser->flush();
 }
 
 DECODER_FUNC(void, flacReset, jlong jContext, jlong newPosition) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacReset");
   Context *context = reinterpret_cast<Context *>(jContext);
   context->parser->reset(newPosition);
 }
 
 DECODER_FUNC(void, flacSeekAbsolute, jlong jContext, jlong timeUs) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacSeekAbsolute");
   Context *context = reinterpret_cast<Context *>(jContext);
   context->parser->seekAbsolute(timeUs);
 }
 
 DECODER_FUNC(void, flacRelease, jlong jContext) {
-  __android_log_print(ANDROID_LOG_ERROR, "flac_jni", "flacRelease");
   Context *context = reinterpret_cast<Context *>(jContext);
   delete context;
 }
