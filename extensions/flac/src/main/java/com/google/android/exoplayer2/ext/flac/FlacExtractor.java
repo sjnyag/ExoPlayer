@@ -92,9 +92,11 @@ public final class FlacExtractor implements Extractor {
   public int read(final ExtractorInput input, PositionHolder seekPosition)
       throws IOException, InterruptedException {
     Log.e("FlacExtractor", "read start");
-    Log.e("FlacExtractor", "read metadataParsed:" + metadataParsed);
-    decoderJni.setData(input);
-    Log.e("FlacExtractor", "read setData end");
+    if(decoderJni.isSeeking()){
+      decoderJni.setDataAfterSkip(input);
+    }else {
+      decoderJni.setData(input);
+    }
 
     if (!metadataParsed) {
       final FlacStreamInfo streamInfo;
@@ -132,32 +134,23 @@ public final class FlacExtractor implements Extractor {
     }
 
     outputBuffer.reset();
-    Log.e("FlacExtractor", "read reset end");
     long lastDecodePosition = decoderJni.getDecodePosition();
-    Log.e("FlacExtractor", "read getDecodePosition end");
     int size;
     try {
       size = decoderJni.decodeSample(outputByteBuffer);
-      Log.e("FlacExtractor", "read decodeSample end");
     } catch (IOException e) {
-      Log.e("FlacExtractor", "read decodeSample IOException");
-      e.printStackTrace();
       if (lastDecodePosition >= 0) {
         decoderJni.reset(lastDecodePosition);
-          Log.e("FlacExtractor", "read reset end");
         input.setRetryPosition(lastDecodePosition, e);
-          Log.e("FlacExtractor", "read setRetryPosition end");
       }
       throw e;
     }
     if (size <= 0) {
-      Log.e("FlacExtractor", "read size <= 0");
       return RESULT_END_OF_INPUT;
     }
     trackOutput.sampleData(outputBuffer, size);
     trackOutput.sampleMetadata(decoderJni.getLastSampleTimestamp(), C.BUFFER_FLAG_KEY_FRAME, size,
         0, null);
-    Log.e("FlacExtractor", "read end");
 
     return decoderJni.isEndOfData() ? RESULT_END_OF_INPUT : RESULT_CONTINUE;
   }

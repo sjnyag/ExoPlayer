@@ -15,8 +15,6 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
-import android.util.Log;
-
 import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
 import com.google.android.exoplayer2.decoder.SimpleDecoder;
 import com.google.android.exoplayer2.decoder.SimpleOutputBuffer;
@@ -89,7 +87,6 @@ import java.util.List;
   @Override
   protected FlacDecoderException decode(
       DecoderInputBuffer inputBuffer, SimpleOutputBuffer outputBuffer, boolean reset) {
-    Log.e("FlacDecoder", "decode reset:" + reset);
     if (reset) {
       decoderJni.flush();
     }
