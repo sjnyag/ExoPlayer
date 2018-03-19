@@ -30,7 +30,6 @@ import java.util.Arrays;
 /* package */ final class FlacDecoderJni {
 
   private static final int TEMP_BUFFER_SIZE = 8192; // The same buffer size which libflac has
-  private static final int SEEK_BUFFER_SIZE = 256 * 1024; // The same buffer size which libflac has
 
   private final long nativeDecoderContext;
 
@@ -39,8 +38,6 @@ import java.util.Arrays;
   private boolean endOfExtractorInput;
   private byte[] tempBuffer;
   private byte[] seekBuffer;
-  private long currentPos = 0;
-  private boolean isSeeking = false;
 
   public FlacDecoderJni() throws FlacDecoderException {
     if (!FlacLibrary.isAvailable()) {
@@ -84,11 +81,8 @@ import java.util.Arrays;
     return true;
   }
 
-  public boolean isSeeking(){
-    return isSeeking;
-  }
-
   public long getStreamLength(){
+    Log.e("FlacDecoderJni", "getStreamLength");
     if (extractorInput != null) {
       return extractorInput.getLength();
     } else {
@@ -119,13 +113,10 @@ import java.util.Arrays;
 
       byteBufferData.limit(originalLimit);
     } else if (extractorInput != null) {
-      int skip = offset - ((int) currentPos);
-      Log.e("FlacDecoderJni", "byteCount: " + byteCount);
-      Log.e("FlacDecoderJni", "offset: " + offset);
-      Log.e("FlacDecoderJni", "currentPos: " + (int) currentPos);
-      Log.e("FlacDecoderJni", "skip: " + skip);
+      int skip = offset - ((int) extractorInput.getPosition());
+      Log.e("FlacDecoderJni", "read byteCount: " + byteCount + ", offset: " + offset + ", currentPos: " + (int) extractorInput.getPosition() + ", skip: " + skip);
       if(skip < 0){
-        if(SEEK_BUFFER_SIZE + skip < 0){
+        if(seekBuffer.length + skip < 0){
           return -1;
         }
         byte[] buffered = Arrays.copyOfRange(seekBuffer,seekBuffer.length + skip, seekBuffer.length + skip + Math.min(skip * -1, TEMP_BUFFER_SIZE));
@@ -136,12 +127,8 @@ import java.util.Arrays;
         target.put(result, 0, buffered.length + byteCount);
         return result.length;
       }
-      while(true){
-        if(skip <= 0 || skip == C.RESULT_END_OF_INPUT){
-          break;
-        }
-        skip -= readFromExtractorInput(0, Math.min(skip, TEMP_BUFFER_SIZE));
-      }
+      seekBuffer = new byte[skip];
+      extractorInput.readFully(seekBuffer, 0, skip);
       byteCount = Math.min(byteCount, TEMP_BUFFER_SIZE);
       int read = readFromExtractorInput(0, byteCount);
       if (read < 4) {
@@ -209,10 +196,7 @@ import java.util.Arrays;
   }
 
   public void seekAbsolute(long timeUs) {
-    isSeeking = true;
-    seekBuffer = new byte[SEEK_BUFFER_SIZE];
     flacSeekAbsolute(nativeDecoderContext, timeUs);
-    isSeeking = false;
   }
 
   public void release() {
@@ -226,13 +210,6 @@ import java.util.Arrays;
       endOfExtractorInput = true;
       read = 0;
     }
-    if(isSeeking){
-      byte[] tempSeekBuffer = new byte[SEEK_BUFFER_SIZE];
-      System.arraycopy(seekBuffer, length, tempSeekBuffer, 0, seekBuffer.length - length);
-      System.arraycopy(tempBuffer,0, tempSeekBuffer, seekBuffer.length - length, length);
-      seekBuffer = tempSeekBuffer;
-    }
-    currentPos += read;
     return read;
   }
 

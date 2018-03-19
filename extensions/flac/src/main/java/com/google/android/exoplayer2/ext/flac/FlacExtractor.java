@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
+import android.util.Log;
+
 import static com.google.android.exoplayer2.util.Util.getPcmEncoding;
 
 import com.google.android.exoplayer2.C;
@@ -66,6 +68,7 @@ public final class FlacExtractor implements Extractor {
 
   private ParsableByteArray outputBuffer;
   private ByteBuffer outputByteBuffer;
+  private long seekTimeUs = 0;
 
   @Override
   public void init(ExtractorOutput output) {
@@ -89,11 +92,7 @@ public final class FlacExtractor implements Extractor {
   @Override
   public int read(final ExtractorInput input, PositionHolder seekPosition)
       throws IOException, InterruptedException {
-    if(decoderJni.isSeeking()){
-      return RESULT_SEEK;
-    }
     decoderJni.setData(input);
-
     if (!metadataParsed) {
       final FlacStreamInfo streamInfo;
       try {
@@ -130,6 +129,11 @@ public final class FlacExtractor implements Extractor {
     }
 
     outputBuffer.reset();
+    if(seekTimeUs != 0) {
+      decoderJni.seekAbsolute(seekTimeUs);
+      seekTimeUs = 0;
+    }
+
     long lastDecodePosition = decoderJni.getDecodePosition();
     int size;
     try {
@@ -153,15 +157,15 @@ public final class FlacExtractor implements Extractor {
 
   @Override
   public void seek(long position, long timeUs) {
-    if (position == 0 && timeUs == 0) {
+    Log.e("FlacExtractor", "seek: position " + position + ", timeUs" + timeUs );
+    if (position == 0) {
       metadataParsed = false;
     }
     if (decoderJni != null) {
       if(position == 0){
-        decoderJni.seekAbsolute(timeUs);
-      } else {
-        decoderJni.reset(position);
+        seekTimeUs = timeUs;
       }
+      decoderJni.reset(position);
     }
   }
 
