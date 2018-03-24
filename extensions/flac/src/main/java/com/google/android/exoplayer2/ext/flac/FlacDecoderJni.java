@@ -56,6 +56,7 @@ import java.util.List;
     }
 
     public byte[] read(int offset, int length){
+      //Log.e("FlacDecoderJni", "skippedBuffer length: " + skippedBuffer.length + ", readBuffers.size(): " + readBuffers.size());
       if(offset < 0 || length() < offset) {
         Log.e("FlacDecoderJni", "seekBuffer short error length: " + seekBuffer.length());
         return new byte[0];
@@ -70,7 +71,7 @@ import java.util.List;
         int from = offset;
         int to = Math.min(skippedLength, offset + length);
         System.arraycopy(skippedBuffer, from, result,0, to - from);
-        //Log.e("FlacDecoderJni", "result from: " + 0 + ", length: " + (to - from));
+        //Log.e("FlacDecoderJni", "result(skipped) from: " + 0 + ", length: " + (to - from));
         byteCount += to - from;
       }
       if(byteCount >= length){
@@ -85,7 +86,7 @@ import java.util.List;
         int from = Math.max(offset - position, 0);
         int to = Math.min(from + (length - byteCount), pair.first);
         System.arraycopy(pair.second, from, result, byteCount,to - from);
-        //Log.e("FlacDecoderJni", "result from: " + byteCount + ", length: " + (to - from));
+        //Log.e("FlacDecoderJni", "result(read) from: " + byteCount + ", length: " + (to - from));
         byteCount += to - from;
         position += pair.first;
         if(byteCount >= length){
@@ -195,7 +196,7 @@ import java.util.List;
         System.arraycopy(buffered,0, result,0, buffered.length);
         System.arraycopy(tempBuffer,0, result, buffered.length, byteCount);
         target.put(result, 0, buffered.length + byteCount);
-        Log.e("FlacDecoderJni", "read buffered: " + buffered.length + ", result: " + result.length + ", byteCount: " + byteCount);
+        //Log.e("FlacDecoderJni", "read buffered: " + buffered.length + ", result: " + result.length + ", byteCount: " + byteCount);
         return result.length;
       }
       if(skip > TEMP_BUFFER_SIZE) {
@@ -205,6 +206,7 @@ import java.util.List;
       byteCount = Math.min(byteCount, TEMP_BUFFER_SIZE);
       int read = readFromExtractorInput(0, byteCount);
       if (read < 4) {
+        //Log.e("FlacDecoderJni", "read < 4");
         // Reading less than 4 bytes, most of the time, happens because of getting the bytes left in
         // the buffer of the input. Do another read to reduce the number of calls to this method
         // from the native code.

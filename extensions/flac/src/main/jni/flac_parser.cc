@@ -351,7 +351,12 @@ size_t FLACParser::readBuffer(void *output, size_t output_size) {
   if (!FLAC__stream_decoder_process_single(mDecoder)) {
     ALOGE("FLACParser::readBuffer process_single failed. Status: %s",
           getDecoderStateString());
-    return -1;
+    if(FLAC__stream_decoder_get_state(mDecoder) == FLAC__STREAM_DECODER_SEEK_ERROR){
+      FLAC__stream_decoder_flush(mDecoder);
+      FLAC__stream_decoder_process_single(mDecoder);
+    } else {
+      return -1;
+    }
   }
   if (!mWriteCompleted) {
     if (FLAC__stream_decoder_get_state(mDecoder) !=
