@@ -126,6 +126,9 @@ FLAC__StreamDecoderReadStatus FLACParser::readCallback(FLAC__byte buffer[],
 
 FLAC__StreamDecoderSeekStatus FLACParser::seekCallback(
     FLAC__uint64 absolute_byte_offset) {
+  if(absolute_byte_offset < mCurrentPos){
+    return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+  }
   mCurrentPos = absolute_byte_offset;
   mEOF = false;
   return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
@@ -139,9 +142,6 @@ FLAC__StreamDecoderTellStatus FLACParser::tellCallback(
 
 FLAC__StreamDecoderLengthStatus FLACParser::lengthCallback(
     FLAC__uint64 *stream_length) {
-  if(mCurrentPos == 0){
-    return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
-  }
   ssize_t length = (FLAC__uint64)mDataSource->getStreamLength();
   if(length == -1){
     return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
@@ -162,7 +162,8 @@ FLAC__StreamDecoderWriteStatus FLACParser::writeCallback(
     mWriteCompleted = true;
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
   } else {
-    return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+    ALOGE("FLACParser::writeCallback unexpected");
+    return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
   }
 }
 
@@ -349,12 +350,12 @@ size_t FLACParser::readBuffer(void *output, size_t output_size) {
   mWriteCompleted = false;
 
   if (!FLAC__stream_decoder_process_single(mDecoder)) {
-    ALOGE("FLACParser::readBuffer process_single failed. Status: %s",
-          getDecoderStateString());
     if(FLAC__stream_decoder_get_state(mDecoder) == FLAC__STREAM_DECODER_SEEK_ERROR){
       FLAC__stream_decoder_flush(mDecoder);
       FLAC__stream_decoder_process_single(mDecoder);
     } else {
+      ALOGE("FLACParser::readBuffer process_single failed. Status: %s",
+            getDecoderStateString());
       return -1;
     }
   }

@@ -15,8 +15,6 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
-import android.util.Log;
-
 import static com.google.android.exoplayer2.util.Util.getPcmEncoding;
 
 import com.google.android.exoplayer2.C;
@@ -68,7 +66,7 @@ public final class FlacExtractor implements Extractor {
 
   private ParsableByteArray outputBuffer;
   private ByteBuffer outputByteBuffer;
-  private long seekTimeUs = 0;
+  private long absoluteSeekTimeUs = 0;
 
   @Override
   public void init(ExtractorOutput output) {
@@ -129,9 +127,9 @@ public final class FlacExtractor implements Extractor {
     }
 
     outputBuffer.reset();
-    if(seekTimeUs != 0) {
-      decoderJni.seekAbsolute(seekTimeUs);
-      seekTimeUs = 0;
+    if(absoluteSeekTimeUs != 0) {
+      decoderJni.seekAbsolute(absoluteSeekTimeUs);
+      absoluteSeekTimeUs = 0;
     }
 
     long lastDecodePosition = decoderJni.getDecodePosition();
@@ -157,13 +155,12 @@ public final class FlacExtractor implements Extractor {
 
   @Override
   public void seek(long position, long timeUs) {
-    Log.e("FlacExtractor", "seek: position " + position + ", timeUs " + timeUs );
     if (position == 0) {
       metadataParsed = false;
     }
     if (decoderJni != null) {
       if(position == 0){
-        seekTimeUs = timeUs;
+        absoluteSeekTimeUs = timeUs;
       }
       decoderJni.reset(position);
     }
@@ -195,7 +192,6 @@ public final class FlacExtractor implements Extractor {
     @Override
     public SeekPoints getSeekPoints(long timeUs) {
       // TODO: Access the seek table via JNI to return two seek points when appropriate.
-      // return new SeekPoints(new SeekPoint(timeUs, decoderJni.getSeekPosition(timeUs)));
       long pos = decoderJni.getSeekPosition(timeUs);
       return new SeekPoints(new SeekPoint(timeUs, pos == -1 ? 0 : pos));
     }

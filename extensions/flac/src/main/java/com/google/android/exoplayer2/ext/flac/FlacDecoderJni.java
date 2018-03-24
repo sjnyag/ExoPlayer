@@ -15,17 +15,11 @@
  */
 package com.google.android.exoplayer2.ext.flac;
 
-import android.util.Log;
-import android.util.Pair;
-
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.extractor.ExtractorInput;
 import com.google.android.exoplayer2.util.FlacStreamInfo;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * JNI wrapper for the libflac Flac decoder.
@@ -40,78 +34,6 @@ import java.util.List;
   private ExtractorInput extractorInput;
   private boolean endOfExtractorInput;
   private byte[] tempBuffer;
-  private SeekBuffer seekBuffer;
-
-  private class SeekBuffer{
-    private byte[] skippedBuffer;
-    private List<Pair<Integer, byte[]>> readBuffers;
-
-    public SeekBuffer(int size){
-      skippedBuffer = new byte[size];
-      readBuffers = new ArrayList<>();
-    }
-
-    public int length(){
-      return skippedLength() + readLength();
-    }
-
-    public byte[] read(int offset, int length){
-      //Log.e("FlacDecoderJni", "skippedBuffer length: " + skippedBuffer.length + ", readBuffers.size(): " + readBuffers.size());
-      if(offset < 0 || length() < offset) {
-        Log.e("FlacDecoderJni", "seekBuffer short error length: " + seekBuffer.length());
-        return new byte[0];
-      }
-      if(offset + length > length()){
-        length = length() - offset;
-      }
-      int byteCount = 0;
-      byte[] result = new byte[length];
-      int skippedLength = skippedLength();
-      if(offset < skippedLength){
-        int from = offset;
-        int to = Math.min(skippedLength, offset + length);
-        System.arraycopy(skippedBuffer, from, result,0, to - from);
-        //Log.e("FlacDecoderJni", "result(skipped) from: " + 0 + ", length: " + (to - from));
-        byteCount += to - from;
-      }
-      if(byteCount >= length){
-        return result;
-      }
-      int position = skippedLength;
-      for(Pair<Integer, byte[]> pair : readBuffers){
-        if(position + pair.first < offset + byteCount){
-          position += pair.first;
-          continue;
-        }
-        int from = Math.max(offset - position, 0);
-        int to = Math.min(from + (length - byteCount), pair.first);
-        System.arraycopy(pair.second, from, result, byteCount,to - from);
-        //Log.e("FlacDecoderJni", "result(read) from: " + byteCount + ", length: " + (to - from));
-        byteCount += to - from;
-        position += pair.first;
-        if(byteCount >= length){
-          return result;
-        }
-      }
-      return result;
-    }
-
-    public void addReadBuffer(int length, byte[] buffer) {
-      readBuffers.add(Pair.create(length, buffer));
-    }
-
-    private int skippedLength(){
-      return skippedBuffer != null ? skippedBuffer.length : 0;
-    }
-
-    private int readLength(){
-      int readLength = 0;
-      for(Pair<Integer, byte[]> buffer : readBuffers){
-        readLength += buffer.first;
-      }
-      return readLength;
-    }
-  }
 
   public FlacDecoderJni() throws FlacDecoderException {
     if (!FlacLibrary.isAvailable()) {
@@ -155,14 +77,6 @@ import java.util.List;
     return true;
   }
 
-  public long getStreamLength(){
-    if (extractorInput != null) {
-      return extractorInput.getLength();
-    } else {
-      return -1;
-    }
-  }
-
   /**
    * Reads up to {@code length} bytes from the data source.
    * <p>
@@ -172,6 +86,7 @@ import java.util.List;
    * This method is called from the native code.
    *
    * @param target A target {@link ByteBuffer} into which data should be written.
+   * @param offset The offset into the target array at which to write.
    * @return Returns the number of bytes read, or -1 on failure. It's not an error if this returns
    * zero; it just means all the data read from the source.
    */
@@ -187,26 +102,13 @@ import java.util.List;
       byteBufferData.limit(originalLimit);
     } else if (extractorInput != null) {
       int skip = offset - ((int) extractorInput.getPosition());
-      if(seekBuffer != null)
-        //Log.e("FlacDecoderJni", "read byteCount: " + byteCount + ", offset: " + offset + ", currentPos: " + (int) extractorInput.getPosition() + ", skip: " + skip + ", length: " + seekBuffer.length());
       if(skip < 0){
-        byte[] buffered = seekBuffer.read(seekBuffer.length() + skip, byteCount);
-        byteCount = readFromExtractorInput(0, Math.min(byteCount - buffered.length, TEMP_BUFFER_SIZE));
-        byte[] result = new byte[buffered.length + byteCount];
-        System.arraycopy(buffered,0, result,0, buffered.length);
-        System.arraycopy(tempBuffer,0, result, buffered.length, byteCount);
-        target.put(result, 0, buffered.length + byteCount);
-        //Log.e("FlacDecoderJni", "read buffered: " + buffered.length + ", result: " + result.length + ", byteCount: " + byteCount);
-        return result.length;
+        return -1;
       }
-      if(skip > TEMP_BUFFER_SIZE) {
-        seekBuffer = new SeekBuffer(skip);
-        extractorInput.readFully(seekBuffer.skippedBuffer, 0, skip);
-      }
+      extractorInput.skipFully(skip);
       byteCount = Math.min(byteCount, TEMP_BUFFER_SIZE);
       int read = readFromExtractorInput(0, byteCount);
       if (read < 4) {
-        //Log.e("FlacDecoderJni", "read < 4");
         // Reading less than 4 bytes, most of the time, happens because of getting the bytes left in
         // the buffer of the input. Do another read to reduce the number of calls to this method
         // from the native code.
@@ -218,6 +120,17 @@ import java.util.List;
       return -1;
     }
     return byteCount;
+  }
+
+  /**
+   * This method is called from the native code.
+   */
+  public long getStreamLength(){
+    if (extractorInput != null) {
+      return extractorInput.getLength();
+    } else {
+      return -1;
+    }
   }
 
   public FlacStreamInfo decodeMetadata() throws IOException, InterruptedException {
@@ -284,8 +197,6 @@ import java.util.List;
     if (read == C.RESULT_END_OF_INPUT) {
       endOfExtractorInput = true;
       read = 0;
-    }else if(seekBuffer != null){
-      seekBuffer.addReadBuffer(read, tempBuffer);
     }
     return read;
   }
